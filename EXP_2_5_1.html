@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>EXP_2_5_1</title>
+
+<script src="https://cdn.jsdelivr.net/pyodide/v0.23.4/full/pyodide.js"></script>
+
+<style>
+body{
+background:#1e1e1e;
+color:white;
+font-family:monospace;
+padding:20px;
+}
+
+.editor{
+display:flex;
+border:1px solid #444;
+height:300px;
+}
+
+#lineNumbers{
+background:#111;
+color:#00ff00;
+padding:10px;
+text-align:right;
+white-space:pre;
+}
+
+#code{
+flex:1;
+background:#111;
+color:white;
+border:none;
+padding:10px;
+resize:none;
+overflow:auto;
+white-space:pre;
+}
+
+button{
+margin-top:10px;
+padding:8px 14px;
+background:#007acc;
+color:white;
+border:none;
+cursor:pointer;
+}
+
+#output{
+margin-top:20px;
+background:#111;
+padding:10px;
+}
+</style>
+</head>
+
+<body>
+
+<h3>Linear System Solver</h3>
+
+<div class="editor">
+
+<pre id="lineNumbers"></pre>
+
+<textarea id="code">
+import numpy as np
+
+# Coefficient matrix
+A = np.array([
+    [1, -1, -1],
+    [10, 20, 0],
+    [0, 20, -30]
+])
+
+# Constants vector
+B = np.array([0, 5, 0])
+
+# Solve system
+X = np.linalg.solve(A, B)
+
+print(f"Solution: x = {X[0]}, y = {X[1]}, z = {X[2]}")
+</textarea>
+
+</div>
+
+<button onclick="run()">Run</button>
+
+<div id="output"></div>
+
+<script>
+
+let pyodideReady = loadPyodide()
+
+const code=document.getElementById("code")
+const lines=document.getElementById("lineNumbers")
+
+function updateLines(){
+let n=code.value.split("\n").length
+let s=""
+for(let i=1;i<=n;i++) s+=i+"\n"
+lines.textContent=s
+}
+
+code.addEventListener("input",updateLines)
+code.addEventListener("scroll",()=>lines.scrollTop=code.scrollTop)
+
+updateLines()
+
+async function run(){
+
+let pyodide=await pyodideReady
+
+await pyodide.loadPackage(["numpy"])
+
+await pyodide.runPythonAsync(`
+import sys,io
+sys.stdout=io.StringIO()
+`)
+
+await pyodide.runPythonAsync(code.value)
+
+let out=await pyodide.runPythonAsync("sys.stdout.getvalue()")
+
+document.getElementById("output").innerText = out
+
+}
+
+</script>
+
+</body>
+</html>

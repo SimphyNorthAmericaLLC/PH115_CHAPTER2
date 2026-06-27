@@ -1,0 +1,162 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>CH2_EXIT_QUIZ</title>
+
+<style>
+body{
+background:#1e1e1e;
+color:white;
+font-family:system-ui, sans-serif;
+padding:25px;
+}
+
+#quiz{
+max-width:760px;
+}
+
+button{
+display:block;
+margin:6px 0;
+padding:8px 12px;
+background:#2a2a2a;
+color:white;
+border:1px solid #555;
+cursor:pointer;
+}
+
+button:hover{
+background:#3a3a3a;
+}
+
+#feedback{
+margin-top:15px;
+}
+
+#restart{
+display:none;
+margin-top:20px;
+padding:8px 14px;
+background:#007acc;
+border:none;
+}
+</style>
+</head>
+
+<body>
+
+<div id="quiz">
+<h3 id="progress"></h3>
+<div id="question"></div>
+<div id="choices"></div>
+<div id="feedback"></div>
+<button id="restart">Restart</button>
+</div>
+
+<script>
+
+const QUIZ = [
+{q:"Ohm’s law", c:["applies across all devices","is very restricted in its application by the voltage and current range"], a:1},
+{q:"A semiconductor is a typical", c:["Ohmic element","non Ohmic element"], a:1},
+{q:"Resistivity depends on", c:["the collision time between charge carriers","the length of the wire","the cross-section of the wire","none of these"], a:0},
+{q:"If the length of the wire is doubled, its resistance", c:["doubles","become half","remains constant","none of these apply"], a:0},
+{q:"If the length of the wire is doubled, its resistivity", c:["doubles","becomes half","remains constant","none of these apply"], a:2},
+{q:"If the cross section of the wire is doubled, its resistivity", c:["doubles","becomes half","remains constant","none of these apply"], a:2},
+{q:"If the cross section of the wire is doubled, its resistance", c:["doubles","becomes half","remains constant","none of these apply"], a:1},
+{q:"The main carriers of current are", c:["protons","electrons","positive ions","none of these apply"], a:1},
+{q:"The electric field inside a current carrying wire is", c:["zero","non-zero"], a:1},
+{q:"Two identical wires carry 1 A. One is DC and the other 1 A (max) AC. Which heats faster?", c:["the DC","the AC","the same time"], a:0},
+{q:"The voltage and current across a resistor in AC are", c:["in phase","90° off","180° off","more information is required"], a:0},
+{q:"Effective resistance of two resistors in parallel in DC vs AC is", c:["higher in DC","higher in AC","the same in both"], a:2},
+{q:"The RMS quantity for 1 A current is about", c:["1.7 A","0.7 A","1 A","none of these"], a:1},
+{q:"Kirchhoff rules in AC domain are", c:["applicable exactly as in DC","not applicable as in DC","depends if resistor is Ohmic","more information needed"], a:0},
+{q:"RMS of AC source with 10 V max at 100 Hz vs 200 Hz", c:["about 7.07 V in both cases","about 7.07 and 3.53 V","about 7.07 and 14.14 V","none of these"], a:0}
+];
+
+let index=0;
+let score=0;
+
+const progress=document.getElementById("progress");
+const question=document.getElementById("question");
+const choices=document.getElementById("choices");
+const feedback=document.getElementById("feedback");
+const restart=document.getElementById("restart");
+
+function render(){
+
+const q=QUIZ[index];
+
+progress.textContent=`Question ${index+1} / ${QUIZ.length}`;
+question.textContent=q.q;
+
+choices.innerHTML="";
+feedback.textContent="";
+
+q.c.forEach((choice,i)=>{
+
+let b=document.createElement("button");
+b.textContent=String.fromCharCode(97+i)+") "+choice;
+
+b.onclick=()=>select(i);
+
+choices.appendChild(b);
+
+});
+
+}
+
+function select(i){
+
+const q=QUIZ[index];
+
+if(i!==q.a){
+
+question.textContent="";
+choices.innerHTML="";
+progress.textContent="";
+feedback.textContent="Incorrect. Restart the quiz.";
+restart.style.display="inline-block";
+
+restart.onclick=start;
+
+return;
+
+}
+
+score++;
+index++;
+
+if(index<QUIZ.length){
+
+render();
+
+}else{
+
+progress.textContent="";
+question.textContent="";
+choices.innerHTML="";
+feedback.textContent=`Perfect! Score: ${score}/${QUIZ.length}`;
+restart.style.display="inline-block";
+restart.onclick=start;
+
+}
+
+}
+
+function start(){
+
+index=0;
+score=0;
+restart.style.display="none";
+render();
+
+}
+
+start();
+
+</script>
+
+</body>
+</html>
