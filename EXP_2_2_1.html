@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Newton's Cradle Interactive</title>
+<style>
+  :root{--bg:#071019;--panel:#0d1a27;--panel2:#112334;--ink:#eef7ff;--muted:#9fb2c3;--cyan:#55d6e8;--gold:#ffc857;--red:#ff6b75;--line:#284056}
+  *{box-sizing:border-box} body{margin:0;min-height:100vh;background:radial-gradient(circle at 50% -18%,#23445a 0,#071019 54%);color:var(--ink);font:16px/1.45 Inter,ui-sans-serif,system-ui,-apple-system,sans-serif}
+  main{max-width:1080px;margin:auto;padding:22px}.top{display:flex;justify-content:space-between;gap:16px;align-items:end;margin-bottom:16px}.eyebrow{color:var(--cyan);font-size:.74rem;font-weight:800;letter-spacing:.14em;text-transform:uppercase}h1{font-size:clamp(1.7rem,4vw,2.6rem);letter-spacing:-.035em;margin:.2rem 0 0}.sub{color:var(--muted);margin:.25rem 0 0}.actions{display:flex;gap:8px;flex-wrap:wrap}button{border:1px solid #38566d;border-radius:10px;background:#10283a;color:var(--ink);padding:10px 14px;font:inherit;font-weight:750;cursor:pointer}button.primary{background:var(--cyan);border-color:var(--cyan);color:#06202a}button:hover{filter:brightness(1.12)}button:focus-visible,input:focus-visible{outline:3px solid #55d6e866;outline-offset:2px}
+  .controls{display:grid;grid-template-columns:repeat(4,minmax(150px,1fr));gap:14px;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:15px;margin-bottom:14px}.control label{display:flex;justify-content:space-between;gap:8px;font-size:.84rem;font-weight:750}.control output{color:var(--gold);font-variant-numeric:tabular-nums}.control input{width:100%;margin-top:9px;accent-color:var(--cyan)}
+  .canvas-wrap{position:relative;border:1px solid var(--line);border-radius:20px;overflow:hidden;background:linear-gradient(#0a1824,#061019);box-shadow:0 26px 70px #0008}canvas{display:block;width:100%;height:auto;aspect-ratio:16/9}.hint{position:absolute;left:14px;bottom:12px;color:#b8c8d5;background:#071019cc;border:1px solid #294258;border-radius:9px;padding:6px 9px;font-size:.78rem;pointer-events:none}
+  .readouts{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:14px}.readout{background:var(--panel2);border:1px solid var(--line);border-radius:14px;padding:13px 15px}.readout span{display:block;color:var(--muted);font-size:.78rem;text-transform:uppercase;letter-spacing:.08em}.readout strong{display:block;margin-top:3px;font-size:1.18rem;font-variant-numeric:tabular-nums}.explain{margin-top:14px;color:#c3d2df;font-size:.88rem}.explain b{color:var(--ink)}
+  @media(max-width:760px){main{padding:13px}.top{display:block}.actions{margin-top:12px}.controls{grid-template-columns:1fr 1fr}.readouts{grid-template-columns:1fr}.hint{display:none}}
+</style>
+</head>
+<body>
+<main>
+  <div class="top">
+    <div><div class="eyebrow">Momentum &amp; energy transfer</div><h1>Newton’s Cradle</h1><p class="sub">Release one or more balls and explore how elasticity changes the outcome.</p></div>
+    <div class="actions"><button id="reset">Reset</button><button id="play" class="primary">Release</button></div>
+  </div>
+
+  <section class="controls" aria-label="Cradle controls">
+    <div class="control"><label for="count">Balls <output id="countOut">5</output></label><input id="count" type="range" min="3" max="7" value="5" step="1"></div>
+    <div class="control"><label for="lifted">Balls lifted <output id="liftedOut">1</output></label><input id="lifted" type="range" min="1" max="3" value="1" step="1"></div>
+    <div class="control"><label for="angle">Release angle <output id="angleOut">42°</output></label><input id="angle" type="range" min="10" max="65" value="42" step="1"></div>
+    <div class="control"><label for="rest">Restitution <output id="restOut">1.00</output></label><input id="rest" type="range" min="0.70" max="1" value="1" step="0.01"></div>
+  </section>
+
+  <section class="canvas-wrap">
+    <canvas id="cradle" width="960" height="540" aria-label="Animated Newton's cradle with suspended colliding balls"></canvas>
+    <div class="hint">Idealized pendulums · drag restitution below 1.00 to reveal energy loss</div>
+  </section>
+
+  <section class="readouts" aria-live="polite">
+    <div class="readout"><span>Total mechanical energy</span><strong id="energy">0.000 J</strong></div>
+    <div class="readout"><span>Horizontal momentum</span><strong id="momentum">0.000 kg·m/s</strong></div>
+    <div class="readout"><span>Collision count</span><strong id="collisions">0</strong></div>
+  </section>
+  <p class="explain"><b>What to notice:</b> with restitution near 1.00, nearly the same number of balls exits the opposite side. Lower restitution preserves momentum during each collision but converts more mechanical energy into sound, heat, and deformation.</p>
+</main>
+
+<script>
+(() => {
+  const canvas=document.getElementById('cradle'),ctx=canvas.getContext('2d');
+  const els=Object.fromEntries(['count','lifted','angle','rest','countOut','liftedOut','angleOut','restOut','energy','momentum','collisions','play','reset'].map(id=>[id,document.getElementById(id)]));
+  const balls=[]; let running=false,last=0,acc=0,collisionCount=0;
+  const g=9.81,Lm=0.68,mass=.10,radius=28,Lpx=270;
+  function setup(){
+    const n=+els.count.value,k=Math.min(+els.lifted.value,Math.floor(n/2)),a=+els.angle.value*Math.PI/180;
+    els.lifted.max=Math.max(1,Math.floor(n/2)); if(+els.lifted.value>+els.lifted.max)els.lifted.value=els.lifted.max;
+    balls.length=0; const spacing=radius*2,total=(n-1)*spacing,start=480-total/2;
+    for(let i=0;i<n;i++)balls.push({pivot:start+i*spacing,theta:i<k?-a:0,omega:0});
+    running=false;collisionCount=0;els.play.textContent='Release';updateLabels();draw();
+  }
+  function updateLabels(){els.countOut.value=els.count.value;els.liftedOut.value=els.lifted.value;els.angleOut.value=els.angle.value+'°';els.restOut.value=(+els.rest.value).toFixed(2)}
+  function pos(b){return{x:b.pivot+Lpx*Math.sin(b.theta),y:94+Lpx*Math.cos(b.theta)}}
+  function step(dt){
+    for(const b of balls){b.omega+=-(g/Lm)*Math.sin(b.theta)*dt;b.omega*=Math.pow(.9997,dt*240);b.theta+=b.omega*dt}
+    for(let pass=0;pass<4;pass++)for(let i=0;i<balls.length-1;i++){
+      const a=balls[i],b=balls[i+1],pa=pos(a),pb=pos(b),dx=pb.x-pa.x,dy=pb.y-pa.y,dist=Math.hypot(dx,dy),min=radius*2;
+      if(dist<min+.8){
+        const nx=dx/(dist||1),ny=dy/(dist||1);
+        const va={x:Lpx*Math.cos(a.theta)*a.omega,y:-Lpx*Math.sin(a.theta)*a.omega};
+        const vb={x:Lpx*Math.cos(b.theta)*b.omega,y:-Lpx*Math.sin(b.theta)*b.omega};
+        const rel=(vb.x-va.x)*nx+(vb.y-va.y)*ny;
+        if(rel<-.4){
+          const e=+els.rest.value,J=-(1+e)*rel/2;
+          const vax=va.x-J*nx,vay=va.y-J*ny,vbx=vb.x+J*nx,vby=vb.y+J*ny;
+          const ta={x:Math.cos(a.theta),y:-Math.sin(a.theta)},tb={x:Math.cos(b.theta),y:-Math.sin(b.theta)};
+          a.omega=(vax*ta.x+vay*ta.y)/Lpx;b.omega=(vbx*tb.x+vby*tb.y)/Lpx;collisionCount++;
+        }
+        const overlap=Math.max(0,min-dist),shift=overlap*.5/Lpx;
+        a.theta-=shift*Math.cos(a.theta);b.theta+=shift*Math.cos(b.theta);
+      }
+    }
+  }
+  function metrics(){let E=0,P=0;for(const b of balls){const v=Lm*b.omega;E+=.5*mass*v*v+mass*g*Lm*(1-Math.cos(b.theta));P+=mass*v*Math.cos(b.theta)}els.energy.textContent=E.toFixed(3)+' J';els.momentum.textContent=P.toFixed(3)+' kg·m/s';els.collisions.textContent=collisionCount}
+  function drawBall(p,i){
+    const grad=ctx.createRadialGradient(p.x-10,p.y-12,4,p.x,p.y,radius);grad.addColorStop(0,'#f5fbff');grad.addColorStop(.2,'#9eb4c4');grad.addColorStop(.65,'#445b6d');grad.addColorStop(1,'#172835');ctx.fillStyle=grad;ctx.beginPath();ctx.arc(p.x,p.y,radius,0,Math.PI*2);ctx.fill();ctx.strokeStyle='#b9cad6';ctx.lineWidth=1.5;ctx.stroke();ctx.fillStyle='#d9e7ef';ctx.font='600 13px system-ui';ctx.textAlign='center';ctx.fillText(i+1,p.x,p.y+4)
+  }
+  function draw(){
+    const w=canvas.width,h=canvas.height;ctx.clearRect(0,0,w,h);
+    const bg=ctx.createLinearGradient(0,0,0,h);bg.addColorStop(0,'#0d2332');bg.addColorStop(1,'#061019');ctx.fillStyle=bg;ctx.fillRect(0,0,w,h);
+    ctx.fillStyle='#22394a';ctx.fillRect(126,48,708,18);ctx.fillStyle='#142838';ctx.fillRect(145,66,16,410);ctx.fillRect(799,66,16,410);ctx.fillStyle='#2b4558';ctx.fillRect(105,470,750,18);
+    for(const b of balls){const p=pos(b);ctx.strokeStyle='#adc1cf';ctx.lineWidth=1.4;ctx.beginPath();ctx.moveTo(b.pivot-4,66);ctx.lineTo(p.x-5,p.y-3);ctx.moveTo(b.pivot+4,66);ctx.lineTo(p.x+5,p.y-3);ctx.stroke()}
+    balls.forEach((b,i)=>drawBall(pos(b),i));metrics();
+  }
+  function frame(t){if(!last)last=t;let elapsed=Math.min(.035,(t-last)/1000);last=t;if(running){acc+=elapsed;const dt=1/240;while(acc>=dt){step(dt);acc-=dt}}draw();requestAnimationFrame(frame)}
+  els.play.addEventListener('click',()=>{running=!running;els.play.textContent=running?'Pause':'Resume'});els.reset.addEventListener('click',setup);
+  ['count','lifted','angle'].forEach(id=>els[id].addEventListener('input',setup));els.rest.addEventListener('input',updateLabels);
+  setup();requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
